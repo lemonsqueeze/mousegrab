@@ -12,7 +12,7 @@
      INSTPGMFLAGS = -c -s
      INSTMANFLAGS = -c
      TOP_INCLUDES = -I$(INCROOT)
-      CDEBUGFLAGS = -O2 -g
+      CDEBUGFLAGS = -Wall -O2 -g
       ALLINCLUDES = $(STD_INCLUDES) $(TOP_INCLUDES) $(INCLUDES) $(EXTRA_INCLUDES)
        ALLDEFINES = $(ALLINCLUDES) $(STD_DEFINES) $(PROTO_DEFINES) $(DEFINES) $(COMPATFLAGS)
            CFLAGS = $(CDEBUGFLAGS) $(CCOPTIONS) $(ALLDEFINES)
@@ -34,11 +34,11 @@
  OBJS = unclutter.o
  SRCS = unclutter.c
 
- PROGRAM = unclutter
+ PROGRAM = mousegrab
 
-all:: unclutter
+all:: mousegrab
 
-unclutter: $(OBJS) $(DEPLIBS)
+mousegrab: $(OBJS) $(DEPLIBS)
 	$(RM) $@
 	$(LKED) -o $@ $(OBJS) $(LDOPTIONS) $(LOCAL_LIBRARIES) $(LDLIBS) $(EXTRA_LOAD_FLAGS)
 

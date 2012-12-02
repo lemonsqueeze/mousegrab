@@ -1,0 +1,2 @@
+unclutter			/usr/bin
+debian/local/90unclutter	/etc/X11/Xsession.d

@@ -1,5 +1,5 @@
 .\"unclutter man
-.TH UNCLUTTER 1
+.TH UNCLUTTER 1X
 .SH NAME
 unclutter \- remove idle cursor image from screen
 .SH SYNOPSIS
@@ -17,12 +17,8 @@ unclutter
 .RB [ -reset ]
 .RB [ -root ]
 .RB [ -onescreen ]
-.RB [ -visible ]
-.RB [ -regex ]
-.RB [ -not | -notname
-.IR name " " ... ]
-.RB [ -notclass
-.IR class " " ... ]
+.RB [ -not ]
+.I "name ...
 .SH DESCRIPTION
 .B unclutter
 removes the cursor image from the screen so that it does not
@@ -38,7 +34,7 @@ is followed by the display to open.
 .TP
 -idle
 is followed by the number of seconds between polls for idleness.
-The default is 5. Supports subsecond idle times.
+The default is 5.
 .TP
 -keystroke
 tells
@@ -79,30 +75,12 @@ restricts unclutter to the single screen specified as display,
 or the default screen for the display.
 Normally, unclutter will unclutter all the screens on a display.
 .TP
--visible
-ignore visibility events (does not apply to -grab).
-If the cursor never gets hidden, despite a generous -jitter value,
-try this option
-.TP
 -not
 is followed by a list of window names where the cursor should not be
 removed.
 The first few characters of the WM_NAME property on the window need
 to match one the listed names.
 This argument must be the last on the command line.
-.TP
--notname
-is exactly the same as -not
-.TP
--notclass
-is similar to -notname, except that the WM_CLASS property of the window is used.
-This argument must be the last on the command line, and so cannot be used
-with -not or -notname.
-.TP
--regex
-treats the first name or class (see above) as a regular expression.
-This means that `` -regex -not foo bar '' will not work as expected; instead
-use `` -regex -not 'foo|bar' ''.
 .SH LIMITATIONS
 The -keystroke option may not work (that is, the cursor will not
 disappear) with clients that request KeyRelease events.

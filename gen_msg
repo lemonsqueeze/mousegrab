@@ -1,3 +1,14 @@
+#!/bin/sh
+
+format_msg()
+{
+    echo ""
+    echo -n "#define $1 \""
+    sed -e 's|$|\\n\\|g'
+    echo '"'
+}
+
+format_msg USAGE_MSG <<EOF
 Usage:  mousegrab [options]
 
 Lock mouse to initial window and hide it. Right mouse button to get it
@@ -12,3 +23,14 @@ Especially nice to use with easystroke -> start with mouse gesture !
 Options:
   -display <display>   specify the display to use.
   --version		 show mousegrab version.
+EOF
+
+
+format_msg VERSION_MSG <<EOF
+mousegrab, v1.0
+License GPLv3+: GNU GPL version 3 or later
+<http://gnu.org/licenses/gpl.html>
+
+This is free software; you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+EOF

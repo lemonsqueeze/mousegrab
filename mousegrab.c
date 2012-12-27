@@ -47,7 +47,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <regex.h>
-#include "usage_msg.h"
+#include "messages.h"
 
 char *progname;
 void pexit(str)char *str;{
@@ -179,7 +179,8 @@ Window root;
     return cursor;
 }
 
-int main(argc,argv)char **argv;{
+int main(int ac, char **av)
+{
     Display *display;
     int screen,oldx = -99,oldy = -99,numscreens;
     int doroot = 0, jitter = 0, usegrabmethod = 1, waitagain = 0,
@@ -190,50 +191,58 @@ int main(argc,argv)char **argv;{
     Window root;
     char *displayname = 0;
     
-    progname = *argv;
-    argc--;
-    while(argv++,argc-->0){
-	if(strcmp(*argv,"-display")==0 || strcmp(*argv,"-d")==0){
-	    argc--,argv++;
-	    if(argc<0)usage();
-	    displayname = *argv;
-	}else
-	    usage();	    
+    progname = *av;
+    for (ac--, av++;  ac;  ac--, av++)
+    {
+	if (!strcmp(*av, "-display") || !strcmp(*av, "-d"))
+	{
+	    ac--, av++;
+	    if (ac < 0)
+		usage();
+	    displayname = *av;
+	}
+	else if (!strcmp(*av, "--version"))
+	{
+	    printf(VERSION_MSG);
+	    exit(0);
+	}
+	else
+	    usage();
 #if 0    	
-	if(strcmp(*argv,"-idle")==0){
-	    argc--,argv++;
-	    if(argc<0)usage();
-	    idletime = atof(*argv);
-	}else if(strcmp(*argv,"-keystroke")==0){
+	if(strcmp(*av,"-idle")==0){
+	    ac--,av++;
+	    if(ac<0)usage();
+	    idletime = atof(*av);
+	}else if(strcmp(*av,"-keystroke")==0){
 	    idletime = -1;
-	}else if(strcmp(*argv,"-jitter")==0){
-	    argc--,argv++;
-	    if(argc<0)usage();
-	    jitter = atoi(*argv);
-	}else if(strcmp(*argv,"-noevents")==0){
+	}else if(strcmp(*av,"-jitter")==0){
+	    ac--,av++;
+	    if(ac<0)usage();
+	    jitter = atoi(*av);
+	}else if(strcmp(*av,"-noevents")==0){
 	    doevents = 0;
-	}else if(strcmp(*argv,"-root")==0){
+	}else if(strcmp(*av,"-root")==0){
 	    doroot = 1;
-	}else if(strcmp(*argv,"-grab")==0){
+	}else if(strcmp(*av,"-grab")==0){
 	    usegrabmethod = 1;
-	}else if(strcmp(*argv,"-reset")==0){
+	}else if(strcmp(*av,"-reset")==0){
 	    waitagain = 1;
-	}else if(strcmp(*argv,"-onescreen")==0){
+	}else if(strcmp(*av,"-onescreen")==0){
 	    onescreen = 1;
-	}else if(strcmp(*argv,"-visible")==0){
+	}else if(strcmp(*av,"-visible")==0){
 	    dovisible = 0;
-	}else if(strcmp(*argv,"-regex")==0){
+	}else if(strcmp(*av,"-regex")==0){
 	    nc_re = (regex_t *)malloc(sizeof(regex_t));
-	}else if(strcmp(*argv,"-not")==0 || strcmp(*argv,"-notname")==0){
+	}else if(strcmp(*av,"-not")==0 || strcmp(*av,"-notname")==0){
 	    /* take rest of srg list */
-	    names = ++argv;
+	    names = ++av;
 	    if(*names==0)names = 0;	/* no args follow */
-	    argc = 0;
-	}else if(strcmp(*argv,"-notclass")==0){
+	    ac = 0;
+	}else if(strcmp(*av,"-notclass")==0){
 	    /* take rest of arg list */
-	    classes = ++argv;
+	    classes = ++av;
 	    if(*classes==0)classes = 0;	/* no args follow */
-	    argc = 0;
+	    ac = 0;
 	}else 
 #endif
     }

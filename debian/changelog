@@ -1,7 +1,5 @@
 mousegrab (1.0-1) unstable; urgency=low
 
-  * imported unclutter 8-12 source package code (package patches applied)
-  * mousegrab code
-  * converted package files for mousegrab
+  * initial release (based on unclutter 8-12 source)
 
  -- lemonsqueeze <lemonsqueeze@gmx.com>  Thu, 27 Dec 2012 10:52:56 +0100

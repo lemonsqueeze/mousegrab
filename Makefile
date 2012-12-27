@@ -42,6 +42,14 @@ mousegrab: $(OBJS) $(DEPLIBS)
 	$(RM) $@
 	$(LKED) -o $@ $(OBJS) $(LDOPTIONS) $(LOCAL_LIBRARIES) $(LDLIBS) $(EXTRA_LOAD_FLAGS)
 
+mousegrab.o: mousegrab.c usage_msg.h
+	$(CC) -c $(CFLAGS) mousegrab.c
+
+usage_msg.h: usage_msg.txt
+	echo "#define USAGE_MSG \"\\" > $@
+	cat usage_msg.txt | sed -e 's/$$/\\n\\/g' >> $@
+	echo '"' >> $@
+
 install:: mousegrab
 	$(INSTALL) -d $(BINDIR)
 	$(INSTALL) -c $(INSTPGMFLAGS)   mousegrab $(BINDIR)

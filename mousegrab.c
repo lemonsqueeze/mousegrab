@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <regex.h>
+#include "usage_msg.h"
 
 char *progname;
 void pexit(str)char *str;{
@@ -54,18 +55,8 @@ void pexit(str)char *str;{
     exit(1);
 }
 void usage(){
-    pexit("usage:  moustrap\n\n\
-  lock mouse to initial window and hide it.\n\
-  right mouse button to get it back.\n\
-  \n\
-  Mouse will be hidden but buttons and mouse wheel still work,\n\
-  and app can receive keystrokes.\n\
-  \n\
-  useful if you have an optical mouse that jitters when off the floor\n\
-  and you'd rather not have it wander all over the place, or you need\n\
-  to click on something without worrying about mouse being moved ...\n\
-  Especially nice to use with easystroke -> start with mouse gesture !\n\
-  ");
+    printf(USAGE_MSG);
+    exit(1);
 // FIXME: remove unused unclutter code!
 #if 0
     pexit("usage:\n\

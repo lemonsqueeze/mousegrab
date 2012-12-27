@@ -1,0 +1,14 @@
+Usage:  mousegrab [options]
+
+Lock mouse to initial window and hide it. Right mouse button to get it
+back. Mouse will be hidden but buttons and mouse wheel still work, and app
+can receive keystrokes.
+
+Useful if you have an optical mouse that jitters when off the floor and
+you'd rather not have it wander all over the place, or you need to click on
+something without worrying about mouse being moved (slides, demo ...)
+Especially nice to use with easystroke -> start with mouse gesture !
+
+Options:
+  -display <display>   specify the display to use.
+  --version		 show mousegrab version.

@@ -1,4 +1,5 @@
 
+- add version in code
 - check -display works
 - option to grab window before starting
 - option: give win id on cmd line

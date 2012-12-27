@@ -1,30 +1,52 @@
 /*
- * unclutter: remove idle cursor image from screen so that it doesnt
- * obstruct the area you are looking at.
- * doesn't do it if cursor is in root window or a button is down.
- * polls mouse to see if is stationary, or waits for a keyup event on the
- * screen.  These will only arrive in windows of applications that dont
- * wait for keyup themselves.  We could only do better by using the XTest
- * extensions and so getting all keystroke events.
- * Tries to cope with jitter if you have a mouse that twitches.
- * Unfortunately, clients like emacs set different text cursor
- * shapes depending on whether they have pointer focus or not.
- * Try to kid them with a synthetic EnterNotify event.
- * Whereas version 1 did a grab cursor, version 2 creates a small subwindow.
- * This may work better with some window managers.
- * Some servers return a Visibility event when the subwindow is mapped.
- * Sometimes this is Unobscured, or even FullyObscured. Ignore these and
- * rely on LeaveNotify events. (An InputOnly window is not supposed to get
- * visibility events.)
- * Mark M Martin. cetia feb 1994  mmm@cetia.fr
- * keystroke code from Bill Trost trost@cloud.rain.com
+ * mousegrab: lock mouse to initial window and hide it.
+ * right mouse button to get it back.
+ *
+ * Mouse will be hidden but buttons and mouse wheel still work,
+ * and app can receive keystrokes.
+ *
+ * useful if you have an optical mouse that jitters when off the floor
+ * and you'd rather not have it wander all over the place, or you need
+ * to click on something without worrying about mouse being moved ...
+ * Especially nice to use with easystroke -> start with mouse gesture !
+ * 
+ * implementation: uses XGrabPointer to grab the mouse until released,
+ * so focus etc should pretty much stay where they were when it started.
+ * button events are forwarded to initial window.
+ *
+ * based on unclutter code, by Mark M Martin.
+ *
+ * lemonsqueeze <lemonsqueeze@gmx.com>
  */
+
+/*
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public
+ * License along with this program; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ */
+
 #include <X11/Xos.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xproto.h>
 #include <stdio.h>
 #include "vroot.h"
+#include <string.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <regex.h>
 
 char *progname;
 pexit(str)char *str;{
@@ -32,6 +54,20 @@ pexit(str)char *str;{
     exit(1);
 }
 usage(){
+    pexit("usage:  moustrap\n\n\
+  lock mouse to initial window and hide it.\n\
+  right mouse button to get it back.\n\
+  \n\
+  Mouse will be hidden but buttons and mouse wheel still work,\n\
+  and app can receive keystrokes.\n\
+  \n\
+  useful if you have an optical mouse that jitters when off the floor\n\
+  and you'd rather not have it wander all over the place, or you need\n\
+  to click on something without worrying about mouse being moved ...\n\
+  Especially nice to use with easystroke -> start with mouse gesture !\n\
+  ");
+// FIXME: remove unused unclutter code!
+#if 0
     pexit("usage:\n\
 	-display <display>\n\
 	-idle <seconds>		time between polls to detect idleness.\n\
@@ -43,9 +79,24 @@ usage(){
  	-root	       		apply to cursor on root window too\n\
 	-onescreen		apply only to given screen of display\n\
  	-visible       		ignore visibility events\n\
- 	-noevents      		dont send pseudo events\n\
-	-not names...		dont apply to windows whose wm-name begins.\n\
-				(must be last argument)");
+ 	-noevents      		don't send pseudo events\n\
+	-regex			name or class below is a regular expression\n\
+	-not names...		don't apply to windows whose wm-name begins.\n\
+				(must be last argument)\n\
+	-notname names...	same as -not names...\n\
+	-notclass classes...    don't apply to windows whose wm-class begins.\n\
+				(must be last argument, cannot be used with\n\
+				-not or -notname)");
+#endif
+}
+
+static void dsleep(float t)
+{
+    struct timeval tv;
+    assert(t >= 0);
+    tv.tv_sec = (int) t;
+    tv.tv_usec = (t - tv.tv_sec) * 1000000;
+    select(0, NULL, NULL, NULL, &tv);
 }
 
 #define ALMOSTEQUAL(a,b) (abs(a-b)<=jitter)
@@ -66,27 +117,46 @@ XErrorEvent *error;
 	(*defaulthandler)(display,error);
 }
 
-char **names;	/* -> argv list of names to avoid */
+char **names = 0;	/* -> argv list of names to avoid */
+char **classes = 0;     /* -> argv list of classes to avoid */
+regex_t *nc_re = 0;     /* regex for list of classes/names to avoid */
 
 /*
- * return true if window has a wm_name and the start of it matches
- * one of the given names to avoid
+ * return true if window has a wm_name (class) and the start of it matches
+ * one of the given names (classes) to avoid
  */
 nameinlist(display,window)
 Display *display;
 Window window;
 {
     char **cpp;
-    char *name;
+    char *name = 0;
 
-    if(names==0)return 0;
-    if(XFetchName (display, window, &name)){
-	for(cpp = names;*cpp!=0;cpp++){
-	    if(strncmp(*cpp,name,strlen(*cpp))==0)
-		break;
+    if(names)
+	XFetchName (display, window, &name);
+    else if(classes){
+	XClassHint *xch = XAllocClassHint();
+	if(XGetClassHint (display, window, xch))
+	    name = strdup(xch->res_class);
+	if(xch)
+	    XFree(xch);
+    }else
+	return 0;
+
+    if(name){
+	if(nc_re){
+	    if(!regexec(nc_re, name, 0, 0, 0)) {
+		XFree(name);
+		return 1;
+	    }
+	}else{
+	    for(cpp = names!=0 ? names : classes;*cpp!=0;cpp++){
+		if(strncmp(*cpp,name,strlen(*cpp))==0)
+		    break;
+	    }
+	    XFree(name);
+	    return(*cpp!=0);
 	}
-	XFree(name);
-	return(*cpp!=0);
     }
     return 0;
 }	
@@ -120,8 +190,9 @@ Window root;
 main(argc,argv)char **argv;{
     Display *display;
     int screen,oldx = -99,oldy = -99,numscreens;
-    int doroot = 0, jitter = 0, idletime = 5, usegrabmethod = 0, waitagain = 0,
-	dovisible = 1, doevents = 1, onescreen = 0;
+    int doroot = 0, jitter = 0, usegrabmethod = 1, waitagain = 0,
+        dovisible = 1, doevents = 1, onescreen = 0;
+    float idletime = 0.0;
     Cursor *cursor;
     Window *realroot;
     Window root;
@@ -130,10 +201,11 @@ main(argc,argv)char **argv;{
     progname = *argv;
     argc--;
     while(argv++,argc-->0){
+#if 0    	
 	if(strcmp(*argv,"-idle")==0){
 	    argc--,argv++;
 	    if(argc<0)usage();
-	    idletime = atoi(*argv);
+	    idletime = atof(*argv);
 	}else if(strcmp(*argv,"-keystroke")==0){
 	    idletime = -1;
 	}else if(strcmp(*argv,"-jitter")==0){
@@ -152,17 +224,41 @@ main(argc,argv)char **argv;{
 	    onescreen = 1;
 	}else if(strcmp(*argv,"-visible")==0){
 	    dovisible = 0;
-	}else if(strcmp(*argv,"-not")==0){
+	}else if(strcmp(*argv,"-regex")==0){
+	    nc_re = (regex_t *)malloc(sizeof(regex_t));
+	}else if(strcmp(*argv,"-not")==0 || strcmp(*argv,"-notname")==0){
 	    /* take rest of srg list */
 	    names = ++argv;
 	    if(*names==0)names = 0;	/* no args follow */
+	    argc = 0;
+	}else if(strcmp(*argv,"-notclass")==0){
+	    /* take rest of arg list */
+	    classes = ++argv;
+	    if(*classes==0)classes = 0;	/* no args follow */
 	    argc = 0;
 	}else if(strcmp(*argv,"-display")==0 || strcmp(*argv,"-d")==0){
 	    argc--,argv++;
 	    if(argc<0)usage();
 	    displayname = *argv;
-	}else usage();
+	}else
+#endif
+	    usage();
     }
+    /* compile a regex from the first name or class */
+    if(nc_re){
+	if(names || classes){
+	    if (regcomp(nc_re, (names != 0 ? *names : *classes),
+			REG_EXTENDED | REG_NOSUB)) { /* error */
+		free(nc_re);
+		names = classes = 0;
+		nc_re = 0;
+	    }
+	}else{ /* -regex without -not... ... */
+	    free(nc_re);
+	    nc_re = 0;
+	}
+    }
+
     display = XOpenDisplay(displayname);
     if(display==0)pexit("could not open display");
     numscreens = ScreenCount(display);
@@ -195,8 +291,8 @@ main(argc,argv)char **argv;{
 		 InputOutput, CopyFromParent, 0, (XSetWindowAttributes*)0);
 
     while(1){
-	Window dummywin,windowin,newroot;
-	int rootx,rooty,winx,winy;
+	Window dummywin,windowin,topwin,newroot;
+	int rootx,rooty,winx,winy, res;
 	unsigned int modifs;
 	Window lastwindowavoided = None;
 	
@@ -214,8 +310,11 @@ main(argc,argv)char **argv;{
 		oldx = event.xkey.x_root;
 		oldy = event.xkey.y_root;
 	    }
-	    if(!XQueryPointer(display, root, &newroot, &windowin,
-			 &rootx, &rooty, &winx, &winy, &modifs)){
+	    res = XQueryPointer(display, root, &newroot, &windowin,
+				&rootx, &rooty, &winx, &winy, &modifs);
+	    topwin = windowin;
+	    if (!res)
+	    {
 		/* window manager with virtual root may have restarted
 		 * or we have changed screens */
 		if(!onescreen){
@@ -251,8 +350,10 @@ main(argc,argv)char **argv;{
 		}
 	    }
 	    if(idletime>=0)
-		sleep(idletime);
+		dsleep(idletime);
 	}
+	// printf("topwin: %x windowin: %x\n", (int)topwin, (int) windowin);
+	
 	/* wait again next time */
 	if(waitagain)
 	    oldx = -1-jitter;
@@ -261,15 +362,44 @@ main(argc,argv)char **argv;{
 		    PointerMotionMask|ButtonPressMask|ButtonReleaseMask,
 		    GrabModeAsync, GrabModeAsync, None, cursor[screen],
 		    CurrentTime)==GrabSuccess){
-		/* wait for a button event or large cursor motion */
 		XEvent event;
 		do{
+		    //Window target = topwin;    // lock on first topwin
+		    Window target = windowin;
+		    //Window target = event.xbutton.subwindow;
+
+		    // TODO: exit if target window gets destroyed...
+		    
 		    XNextEvent(display,&event);
-		}while(event.type==KeyRelease ||
-		       (event.type==MotionNotify &&
-			ALMOSTEQUAL(rootx,event.xmotion.x) &&
-			ALMOSTEQUAL(rooty,event.xmotion.y)));
+
+		    // Forward button clicks to initial window
+		    if ((event.type == ButtonPress ||
+			 event.type == ButtonRelease) &&
+			event.xbutton.button != 3)
+		    {
+			event.xbutton.window = target;
+			event.xbutton.subwindow = target;
+			event.xbutton.x = winx;
+			event.xbutton.y = winy;
+			event.xbutton.x_root = rootx;
+			event.xbutton.y_root = rooty;
+			(void)XSendEvent(display, target,
+					 1,
+					 (event.type == ButtonPress ? ButtonPressMask : ButtonReleaseMask),
+					 &event);
+		    }
+
+		}while(!(event.type == ButtonRelease &&
+			     event.xbutton.button == 3));
+		/* keep grabbing the mouse until right click */
+
 		XUngrabPointer(display, CurrentTime);
+		exit(0);
+
+	    }else{
+		/* go to sleep to prevent tight loops */
+		if(idletime>=0)
+			dsleep(idletime);
 	    }
 	}else{
 	    XSetWindowAttributes attributes;

@@ -1,7 +1,0 @@
-Template: unclutter/autostart
-Type: boolean
-Default: true
-_Description: Start unclutter automatically?
- unclutter can be started automatically after X has been started for a
- user. That can be either after startx from console or after login with a
- display manager.

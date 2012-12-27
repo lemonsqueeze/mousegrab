@@ -1,4 +1,4 @@
-# Makefile for unclutter.  Throw this away and use the Imakefile if you can.
+# Makefile for mousegrab.  Throw this away and use the Imakefile if you can.
               TOP = .
       CURRENT_DIR = .
                CC = gcc
@@ -31,8 +31,8 @@
 
   LOCAL_LIBRARIES = $(XLIB)
 
- OBJS = unclutter.o
- SRCS = unclutter.c
+ OBJS = mousegrab.o
+ SRCS = mousegrab.c
 
  PROGRAM = mousegrab
 
@@ -42,11 +42,11 @@ mousegrab: $(OBJS) $(DEPLIBS)
 	$(RM) $@
 	$(LKED) -o $@ $(OBJS) $(LDOPTIONS) $(LOCAL_LIBRARIES) $(LDLIBS) $(EXTRA_LOAD_FLAGS)
 
-install:: unclutter
+install:: mousegrab
 	$(INSTALL) -d $(BINDIR)
-	$(INSTALL) -c $(INSTPGMFLAGS)   unclutter $(BINDIR)
-install.man:: unclutter.man
-	$(INSTALL) -c $(INSTMANFLAGS) unclutter.man $(MANDIR)/unclutter.1
+	$(INSTALL) -c $(INSTPGMFLAGS)   mousegrab $(BINDIR)
+install.man:: mousegrab.man
+	$(INSTALL) -c $(INSTMANFLAGS) mousegrab.man $(MANDIR)/mousegrab.1
 clean::
 	$(RM) $(PROGRAM)
 	$(RM_CMD) \#*

@@ -1,17 +1,22 @@
-Source: unclutter
+Source: mousegrab
 Section: x11
 Priority: optional
-Maintainer: Daniel Baumann <daniel@lists.debian-maintainers.org>
-Uploaders: Daniel Baumann <daniel@debian.org>
-Build-Depends: debhelper (>= 7.0.50~), libx11-dev, quilt (>= 0.46-7)
+Maintainer: lemonsqueeze <lemonsqueeze@gmx.com>
+Uploaders: lemonsqueeze <lemonsqueeze@gmx.com>
+Build-Depends: debhelper (>= 7.0.50~), libx11-dev
 Standards-Version: 3.8.3
-Vcs-Browser: http://git.debian-maintainers.org/?p=daniel/unclutter.git
-Vcs-Git: git://git.debian-maintainers.org/git/daniel/unclutter.git
+Vcs-Browser: https://github.com/lemonsqueeze/mousegrab
+Vcs-Git: https://github.com/lemonsqueeze/mousegrab.git
 
-Package: unclutter
+Package: mousegrab
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: hides the cursor in X after a period of inactivity
- unclutter hides your X mouse cursor when you don't need it, to prevent it
- from getting in the way. You have only to move the mouse to restore the
- mouse cursor.
+Depends: ${shlibs:Depends}
+Description: X11 app to lock mouse to a window
+ mousegrab is a small X11 app to lock the mouse to a window and hide it:
+ Mouse will be hidden but buttons and mouse wheel still work, and app can
+ receive keystrokes. right clicking releases the mouse.
+ .
+ Useful if you have an optical mouse that jitters when off the floor
+ and you'd rather not have it wander all over the place, or you need
+ to click on something without worrying about mouse being moved ...
+ Especially nice to use with easystroke -> start with mouse gesture !

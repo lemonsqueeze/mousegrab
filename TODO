@@ -1,4 +1,5 @@
 
+- check -display works
 - option to grab window before starting
 - option: give win id on cmd line
 - option: don't hide cursor ?

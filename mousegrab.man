@@ -1,0 +1,33 @@
+.\"mousegrab man
+.TH MOUSEGRAB 1
+.SH NAME
+mousegrab \- X11 app to lock mouse to a window
+.SH SYNOPSIS
+.B
+mousegrab
+.RB [options]
+.SH DESCRIPTION
+.B mousegrab
+is a small X11 app to lock the mouse to a window and hide it:
+Mouse will be hidden but buttons and mouse wheel still work, and app can
+receive keystrokes. right clicking releases the mouse.
+
+Useful if you have an optical mouse that jitters when off the floor
+and you'd rather not have it wander all over the place, or you need
+to click on something without worrying about mouse being moved ...
+Especially nice to use with easystroke -> start with mouse gesture !
+
+.SH OPTIONS
+.TP
+-display
+is followed by the display to open.
+
+.SH IMPLEMENTATION
+uses XGrabPointer to grab the mouse until released,
+so focus etc should pretty much stay where they were when it started.
+button events are forwarded to initial window.
+
+.SH AUTHOR
+lemonsqueeze
+
+Based on unclutter code, by Mark M Martin.

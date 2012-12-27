@@ -7,11 +7,25 @@ receive keystrokes. right clicking releases the mouse.
 
 Useful if you have an optical mouse that jitters when off the floor
 and you'd rather not have it wander all over the place, or you need
-to click on something without worrying about mouse being moved ...
-Especially nice to use with easystroke -> start with mouse gesture !
+to click on something without worrying about mouse being moved (slides,
+demo...) Especially nice to use with easystroke: start mousegrab with mouse
+gesture !
+
+In many cases it should be a better alternative to
+  unclutter -idle 0 -root
+to hide the mouse: no cursor flickering, and doesn't eat up cpu when mouse
+is moved (however unlike unclutter, mouse isn't fully functional since
+motion is disabled).
 
 implementation: uses XGrabPointer to grab the mouse until released,
 so focus etc should pretty much stay where they were when it started.
 button events are forwarded to initial window.
 
 based on unclutter code, by Mark M Martin.
+
+---------------------------------------------------------------------
+
+Packages for ubuntu lucid & precise are available in my ppa:
+  https://launchpad.net/~lemonsqueeze/+archive/lucid
+  https://launchpad.net/~lemonsqueeze/+archive/precise
+

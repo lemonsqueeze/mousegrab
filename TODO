@@ -1,7 +1,6 @@
 
-- add version in code
-- check -display works
-- option to grab window before starting
+- display message with osd, more user friendly
+- option to wait for click before starting
 - option: give win id on cmd line
 - option: don't hide cursor ?
 - option: stop with key press 

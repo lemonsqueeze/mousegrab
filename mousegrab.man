@@ -15,19 +15,40 @@ receive keystrokes. right clicking releases the mouse.
 Useful if you have an optical mouse that jitters when off the floor
 and you'd rather not have it wander all over the place, or you need
 to click on something without worrying about mouse being moved ...
-Especially nice to use with easystroke -> start with mouse gesture !
+Especially nice to use with easystroke: start mousegrab with mouse gesture !
+
+In many cases it should be a better alternative to
+.RS
+.nf
+.B
+  unclutter -idle 0 -root
+.fi
+.RE
+to hide the mouse: no cursor flickering, and doesn't eat up cpu when mouse
+is moved (however unlike unclutter, mouse isn't fully functional since
+motion is disabled).
+
 
 .SH OPTIONS
 .TP
--display
-is followed by the display to open.
+\fB--display\fR display
+specify the display to use.
+.TP
+\fB-d\fR delay, \fB--delay\fR delay
+wait delay seconds before grabbing mouse.
+.TP
+\fB--version\fR
+show mousegrab version.
 
 .SH IMPLEMENTATION
 uses XGrabPointer to grab the mouse until released,
 so focus etc should pretty much stay where they were when it started.
 button events are forwarded to initial window.
 
+.SH "SEE ALSO"
+unclutter(1), xtrlock(1)
+
 .SH AUTHOR
-lemonsqueeze
+lemonsqueeze <lemonsqueeze@gmx.com>
 
 Based on unclutter code, by Mark M Martin.

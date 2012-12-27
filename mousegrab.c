@@ -179,6 +179,12 @@ Window root;
     return cursor;
 }
 
+#define NEXT_ARG    do {\
+	                 ac--, av++;	\
+			 if (ac < 0)	\
+			     usage();   \
+		       } while(0)
+
 int main(int ac, char **av)
 {
     Display *display;
@@ -186,20 +192,25 @@ int main(int ac, char **av)
     int doroot = 0, jitter = 0, usegrabmethod = 1, waitagain = 0,
         dovisible = 1, doevents = 1, onescreen = 0;
     float idletime = 0.0;
+    float delay = 0.0;
     Cursor *cursor;
     Window *realroot;
     Window root;
     char *displayname = 0;
     
     progname = *av;
+
     for (ac--, av++;  ac;  ac--, av++)
     {
-	if (!strcmp(*av, "-display") || !strcmp(*av, "-d"))
+	if (!strcmp(*av, "--display"))
 	{
-	    ac--, av++;
-	    if (ac < 0)
-		usage();
+	    NEXT_ARG;
 	    displayname = *av;
+	}
+	else if (!strcmp(*av, "--delay") || !strcmp(*av, "-d"))
+	{
+	    NEXT_ARG;	    
+	    delay = atof(*av);
 	}
 	else if (!strcmp(*av, "--version"))
 	{
@@ -292,6 +303,8 @@ int main(int ac, char **av)
     XCreateWindow(display, realroot[screen], 0,0,1,1, 0, CopyFromParent,
 		 InputOutput, CopyFromParent, 0, (XSetWindowAttributes*)0);
 
+    if (delay != 0.0)
+	dsleep(delay);
     printf("Grabbing mouse. Right click to ungrab.\n");
     
     while(1){

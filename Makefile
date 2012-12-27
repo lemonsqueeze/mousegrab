@@ -59,3 +59,7 @@ Makefile::
 tags::
 	$(TAGS) -w *.[ch]
 	$(TAGS) -xw *.[ch] > TAGS
+
+tgz:
+	debian/rules clean
+	(cd .. && tar -cvzf mousegrab.tgz --exclude=.git mousegrab)

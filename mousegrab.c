@@ -49,11 +49,11 @@
 #include <regex.h>
 
 char *progname;
-pexit(str)char *str;{
+void pexit(str)char *str;{
     fprintf(stderr,"%s: %s\n",progname,str);
     exit(1);
 }
-usage(){
+void usage(){
     pexit("usage:  moustrap\n\n\
   lock mouse to initial window and hide it.\n\
   right mouse button to get it back.\n\
@@ -115,6 +115,7 @@ XErrorEvent *error;
 {
     if(error->error_code!=BadWindow)
 	(*defaulthandler)(display,error);
+    return 0;
 }
 
 char **names = 0;	/* -> argv list of names to avoid */
@@ -125,7 +126,7 @@ regex_t *nc_re = 0;     /* regex for list of classes/names to avoid */
  * return true if window has a wm_name (class) and the start of it matches
  * one of the given names (classes) to avoid
  */
-nameinlist(display,window)
+int nameinlist(display,window)
 Display *display;
 Window window;
 {
@@ -163,7 +164,7 @@ Window window;
 /*
  * create a small 1x1 curssor with all pixels masked out on the given screen.
  */
-createnullcursor(display,root)
+Cursor createnullcursor(display,root)
 Display *display;
 Window root;
 {
@@ -187,7 +188,7 @@ Window root;
     return cursor;
 }
 
-main(argc,argv)char **argv;{
+int main(argc,argv)char **argv;{
     Display *display;
     int screen,oldx = -99,oldy = -99,numscreens;
     int doroot = 0, jitter = 0, usegrabmethod = 1, waitagain = 0,
@@ -201,6 +202,12 @@ main(argc,argv)char **argv;{
     progname = *argv;
     argc--;
     while(argv++,argc-->0){
+	if(strcmp(*argv,"-display")==0 || strcmp(*argv,"-d")==0){
+	    argc--,argv++;
+	    if(argc<0)usage();
+	    displayname = *argv;
+	}else
+	    usage();	    
 #if 0    	
 	if(strcmp(*argv,"-idle")==0){
 	    argc--,argv++;
@@ -236,13 +243,8 @@ main(argc,argv)char **argv;{
 	    classes = ++argv;
 	    if(*classes==0)classes = 0;	/* no args follow */
 	    argc = 0;
-	}else if(strcmp(*argv,"-display")==0 || strcmp(*argv,"-d")==0){
-	    argc--,argv++;
-	    if(argc<0)usage();
-	    displayname = *argv;
-	}else
+	}else 
 #endif
-	    usage();
     }
     /* compile a regex from the first name or class */
     if(nc_re){
@@ -290,6 +292,8 @@ main(argc,argv)char **argv;{
     XCreateWindow(display, realroot[screen], 0,0,1,1, 0, CopyFromParent,
 		 InputOutput, CopyFromParent, 0, (XSetWindowAttributes*)0);
 
+    printf("Grabbing mouse. Right click to ungrab.\n");
+    
     while(1){
 	Window dummywin,windowin,topwin,newroot;
 	int rootx,rooty,winx,winy, res;

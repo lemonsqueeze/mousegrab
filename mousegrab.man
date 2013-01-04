@@ -37,6 +37,9 @@ specify the display to use.
 \fB-d\fR delay, \fB--delay\fR delay
 wait delay seconds before grabbing mouse.
 .TP
+\fB--key\fR key
+stop when key is pressed instead of right mouse button.
+.TP
 \fB--version\fR
 show mousegrab version.
 

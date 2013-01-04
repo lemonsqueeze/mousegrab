@@ -47,9 +47,30 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <regex.h>
+#include "mousegrab.h"
 #include "messages.h"
 
-char *progname;
+/* Globals */
+char *progname = NULL;
+Display *display = NULL;
+int onescreen = 0, screen = 0, numscreens = 0;
+Cursor *cursor = NULL;
+Window *realroot = NULL;
+Window root;
+int rootx, rooty, winx, winy;
+
+int need_keyboard = 0;
+mykey_t *stop_key = NULL;
+int stop_button = 3; /* right click by default */
+
+const char *button_name[] =
+{
+  "",
+  "left",
+  "middle",
+  "right"
+};
+
 void pexit(char *str)
 {
     fprintf(stderr,"%s: %s\n",progname,str);
@@ -62,12 +83,7 @@ void usage()
     exit(1);
 }
 
-void main_loop(Display *display, Window windowin,
-	       int winx, int winy, int rootx, int rooty);
-void doit(Display *display, Window root, Window *realroot,
-	  Cursor *cursor, int screen, int onescreen, int numscreens);
-
-static void dsleep(float t)
+void dsleep(float t)
 {
     struct timeval tv;
     assert(t >= 0);
@@ -81,9 +97,7 @@ static void dsleep(float t)
 /*
  * create a small 1x1 curssor with all pixels masked out on the given screen.
  */
-Cursor createnullcursor(display,root)
-Display *display;
-Window root;
+Cursor createnullcursor(Window root)
 {
     Pixmap cursormask;
     XGCValues xgc;
@@ -105,22 +119,188 @@ Window root;
     return cursor;
 }
 
+/************************************************************************/
+/* key parsing code from xdotool */
+
+/* human to Keysym string mapping */
+const char *symbol_map[] = {
+  "alt", "Alt_L",
+  "ctrl", "Control_L",
+  "control", "Control_L",
+  "meta", "Meta_L",
+  "super", "Super_L",
+  "shift", "Shift_L",
+  NULL, NULL,
+};
+
+int keysequence_to_keycode_list(char *keyseq, charcodemap_t **keys, int *nkeys)
+{
+  char *tokctx = NULL;
+  const char *tok = NULL;
+  char *keyseq_copy = NULL, *strptr = NULL;
+  int i;
+  KeyCode shift_keycode;
+  
+  /* Array of keys to press, in order given by keyseq */
+  int keys_size = 10;
+  *nkeys = 0;
+
+  if (strcspn(keyseq, " \t\n.-[]{}\\|") != strlen(keyseq)) {
+    fprintf(stderr, "Error: Invalid key sequence '%s'\n", keyseq);
+    return False;
+  }
+
+  shift_keycode = XKeysymToKeycode(display, XStringToKeysym("Shift_L"));
+
+  *keys = malloc(keys_size * sizeof(charcodemap_t));
+  keyseq_copy = strptr = strdup(keyseq);
+  while ((tok = strtok_r(strptr, "+", &tokctx)) != NULL) {
+    KeySym sym;
+    KeyCode key;
+
+    if (strptr != NULL)
+      strptr = NULL;
+
+    /* Check if 'tok' (string keysym) is an alias to another key */
+    /* symbol_map comes from xdo.util */
+    for (i = 0; symbol_map[i] != NULL; i+=2)
+      if (!strcasecmp(tok, symbol_map[i]))
+        tok = symbol_map[i + 1];
+
+    sym = XStringToKeysym(tok);
+    if (sym == NoSymbol) {
+      fprintf(stderr, "(symbol) No such key name '%s'. Ignoring it.\n", tok);
+      continue;
+    }
+
+    key = XKeysymToKeycode(display, sym);
+    (*keys)[*nkeys].code = key;
+    if (XKeycodeToKeysym(display, key, 0) == sym) {
+      (*keys)[*nkeys].shift = 0;
+    } else  {
+      (*keys)[*nkeys].shift = shift_keycode;
+    }
+
+    if ((*keys)[*nkeys].code == 0) {
+      fprintf(stderr, "No such key '%s'. Ignoring it.\n", tok);
+      continue;
+    }
+
+    (*nkeys)++;
+    if (*nkeys == keys_size) {
+      keys_size *= 2;
+      *keys = realloc(*keys, keys_size * sizeof(KeyCode));
+    }
+  }
+
+  free(keyseq_copy);
+
+  return True;
+}
+
+/************************************************************************/
+
+mykey_t *parse_key(char *keyseq)
+{
+    mykey_t *k = malloc(sizeof(mykey_t));
+    k->keys = NULL;
+    k->nkeys = 0;
+    keysequence_to_keycode_list(keyseq, &k->keys, &k->nkeys);
+
+    need_keyboard = 1;    
+    return k;
+}
+
+int key_matches(XEvent *event, mykey_t *k)
+{
+    return (k && (event->xkey.keycode == k->keys[0].code));
+}
+
+/* query pointer:
+ *   sets windowin to current toplevel with focus
+ *        modifs to button state
+ *   also updates rootx, rooty, winx, winy
+ *                and root
+ */
+void query_pointer(Window *windowin, unsigned int *modifs)
+{
+    int res;
+    Window newroot;
+    
+    for (; 1; dsleep(0.2))
+    {
+	res = XQueryPointer(display, root, &newroot, windowin,
+			    &rootx, &rooty, &winx, &winy, modifs);
+	// topwin = windowin;
+	if (!res)
+	{
+	    /* window manager with virtual root may have restarted
+	     * or we have changed screens */
+	    if (!onescreen)
+	    {
+		for (screen = 0; screen < numscreens; screen++)
+		    if (newroot == realroot[screen])
+			break;
+		if (screen >= numscreens)
+		    pexit("not on a known screen");
+	    }
+	    root = VirtualRootWindow(display, screen);
+	    continue;
+	}
+	break;
+    }        
+}
+
+Window get_focus_window(void)
+{
+    Window windowin, dummywin;
+    unsigned int modifs;    
+    Window lastwindowavoided = None;    
+
+    query_pointer(&windowin, &modifs);
+
+    if (windowin == None)
+	windowin = root;
+    else if (windowin != lastwindowavoided)
+    {
+	/* descend tree of windows under cursor to bottommost */
+	/* FIXME okay unclutter's doing this, but isn't XQueryTree() more appropriate ? */
+	Window childin;
+	int toavoid = xFalse;
+	lastwindowavoided = childin = windowin;
+	do{
+	    windowin = childin;
+	}while(XQueryPointer(display, windowin, &dummywin,
+			     &childin, &rootx, &rooty, &winx, &winy, &modifs)
+	       && childin != None);
+	if (!toavoid)
+	    lastwindowavoided = None;
+    }
+
+    //printf("topwin: %#x windowin: %#x\n", (int)topwin, (int) windowin);
+    return windowin;
+}
+
+void forward_event(Window target, int event_mask, XEvent *event)
+{
+    (void)XSendEvent(display, target, 1, event_mask, event);
+}
+
+void main_loop(void);
+void doit(void);
+
 #define NEXT_ARG    do {\
 	                 ac--, av++;	\
 			 if (ac < 0)	\
 			     usage();   \
 		       } while(0)
 
+
 int main(int ac, char **av)
 {
-    Display *display;
-    int screen,numscreens;
-    int onescreen = 0;
     float delay = 0.0;
-    Cursor *cursor;
-    Window *realroot;
-    Window root;
     char *displayname = 0;
+    char *stopkeysym = 0;
     
     progname = *av;
 
@@ -136,6 +316,11 @@ int main(int ac, char **av)
 	    NEXT_ARG;
 	    delay = atof(*av);
 	}
+	else if (!strcmp(*av, "--key"))
+	{
+	    NEXT_ARG;
+	    stopkeysym = *av;
+	}	
 	else if (!strcmp(*av, "--version"))
 	{
 	    printf(VERSION_MSG);
@@ -161,7 +346,7 @@ int main(int ac, char **av)
 	    cursor[screen] = -1;
 	}else{
 	    realroot[screen] = XRootWindow(display, screen);
-	    cursor[screen] = createnullcursor(display, realroot[screen]);
+	    cursor[screen] = createnullcursor(realroot[screen]);
 	}
     screen = DefaultScreen(display);
     root = VirtualRootWindow(display, screen);
@@ -173,107 +358,89 @@ int main(int ac, char **av)
     XCreateWindow(display, realroot[screen], 0, 0, 1, 1, 0, CopyFromParent,
 		 InputOutput, CopyFromParent, 0, (XSetWindowAttributes*)0);
 
+    if (stopkeysym)
+    {
+	stop_key = parse_key(stopkeysym);
+	stop_button = 0;
+    }
+    
     if (delay != 0.0)
 	dsleep(delay);
-    printf("Grabbing mouse. Right click to ungrab.\n");
+
+    if (stop_button)
+	printf("Grabbing mouse. %s click to ungrab.\n", button_name[stop_button]);
+    else
+	printf("Grabbing mouse. press %s to ungrab.\n", stopkeysym);
     
-    doit(display, root, realroot, cursor, screen, onescreen, numscreens);
+    doit();
     return 0;
 }
 
-void doit(Display *display, Window root, Window *realroot,
-	  Cursor *cursor, int screen, int onescreen, int numscreens)
+void doit(void)
 {
-    Window dummywin,windowin,topwin,newroot;
-    int rootx,rooty,winx,winy, res;
+    Window windowin;
     unsigned int modifs;
-    Window lastwindowavoided = None;
 
-    /* wait for no buttons down */
-    for (; 1; dsleep(0.2))
-    {
-	res = XQueryPointer(display, root, &newroot, &windowin,
-			    &rootx, &rooty, &winx, &winy, &modifs);
-	topwin = windowin;
-	if (!res)
-	{
-	    /* window manager with virtual root may have restarted
-	     * or we have changed screens */
-	    if (!onescreen)
-	    {
-		for (screen = 0; screen < numscreens; screen++)
-		    if (newroot == realroot[screen])
-			break;
-		if (screen >= numscreens)
-		    pexit("not on a known screen");
-	    }
-	    root = VirtualRootWindow(display, screen);
-	    continue;
-	}
-	if (modifs & ANYBUTTON)
-	    continue;
-	break;
-    }
+    /* wait for no buttons */
+    do { query_pointer(&windowin, &modifs); }
+    while (modifs & ANYBUTTON);
 
-    if (windowin == None)
-	windowin = root;
-    else if (windowin != lastwindowavoided)
-    {
-	/* descend tree of windows under cursor to bottommost */
-	Window childin;
-	int toavoid = xFalse;
-	lastwindowavoided = childin = windowin;
-	do{
-	    windowin = childin;
-	}while(XQueryPointer(display, windowin, &dummywin,
-			     &childin, &rootx, &rooty, &winx, &winy, &modifs)
-	       && childin != None);
-	if (!toavoid)
-	    lastwindowavoided = None;
-    }
-
-    // printf("topwin: %x windowin: %x\n", (int)topwin, (int) windowin);
-	
     if (XGrabPointer(display, root, 0,
 		     PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 		     GrabModeAsync, GrabModeAsync, None, cursor[screen],
 		     CurrentTime) != GrabSuccess)
 	pexit("Couldn't grab pointer.");
-	
-    main_loop(display, windowin, winx, winy, rootx, rooty);    
+
+    if (need_keyboard)
+	if (XGrabKeyboard(display, root, 0,
+			  GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess)
+	    pexit("Couldn't grab keyboard.");
+    
+    main_loop();
 }
 
-void main_loop(Display *display, Window windowin,
-	       int winx, int winy, int rootx, int rooty)
+void main_loop(void)
 {
     XEvent event;
     do{
-	Window target = windowin;
-		    
-	// TODO: exit if target window gets destroyed...
-		    
 	XNextEvent(display,&event);
 
 	// Forward button clicks to initial window
 	if ((event.type == ButtonPress ||
 	     event.type == ButtonRelease) &&
-	    event.xbutton.button != 3)
+	    event.xbutton.button != stop_button)
 	{
+	    Window target = get_focus_window();	    
 	    event.xbutton.window = target;
 	    event.xbutton.subwindow = target;
 	    event.xbutton.x = winx;
 	    event.xbutton.y = winy;
 	    event.xbutton.x_root = rootx;
 	    event.xbutton.y_root = rooty;
-	    (void)XSendEvent(display, target,
-			     1,
-			     (event.type == ButtonPress ? ButtonPressMask : ButtonReleaseMask),
-			     &event);
+	    forward_event(target, (event.type == ButtonPress ? ButtonPressMask : ButtonReleaseMask), &event);
 	}
-	
-    /* keep grabbing the mouse until right click */
-    } while (!(event.type == ButtonRelease &&
-	       event.xbutton.button == 3));
 
+	// Forward key events to initial window
+	if ((event.type == KeyPress ||
+	     event.type == KeyRelease) &&
+	    !key_matches(&event, stop_key))
+	{
+	    Window target = get_focus_window();	    
+	    event.xkey.window = target;
+	    event.xkey.subwindow = target;
+	    event.xkey.x = winx;
+	    event.xkey.y = winy;
+	    event.xkey.x_root = rootx;
+	    event.xkey.y_root = rooty;
+	    forward_event(target, (event.type == KeyPress ? KeyPressMask : KeyReleaseMask), &event);
+	}	
+
+    } while (!(event.type == KeyRelease &&
+	       key_matches(&event, stop_key)) &&
+	     !(event.type == ButtonRelease &&
+	       event.xbutton.button == stop_button));
+    
     XUngrabPointer(display, CurrentTime);
+    if (need_keyboard)
+	XUngrabKeyboard(display, CurrentTime);
 }

@@ -24,7 +24,10 @@ Especially nice to use with easystroke -> start with mouse gesture !
 
 Options:
   --display <display>    specify the display to use.
+  -d      <delay>
   --delay <delay>	 wait delay seconds before grabbing mouse.
+  --key <key>            stop when key is pressed instead of right mouse
+  	                 button.
   --version		 show mousegrab version.
 EOF
 

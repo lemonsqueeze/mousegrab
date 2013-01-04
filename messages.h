@@ -13,7 +13,10 @@ Especially nice to use with easystroke -> start with mouse gesture !\n\
 \n\
 Options:\n\
   --display <display>    specify the display to use.\n\
+  -d      <delay>\n\
   --delay <delay>	 wait delay seconds before grabbing mouse.\n\
+  --key <key>            stop when key is pressed instead of right mouse\n\
+  	                 button.\n\
   --version		 show mousegrab version.\n\
 "
 

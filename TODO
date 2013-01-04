@@ -1,4 +1,6 @@
 
+- Fixme: with new code click location changes ...
+
 - display message with osd, more user friendly
 - option to wait for click before starting
 - option: give win id on cmd line

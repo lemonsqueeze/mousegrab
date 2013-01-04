@@ -50,11 +50,14 @@
 #include "messages.h"
 
 char *progname;
-void pexit(str)char *str;{
+void pexit(char *str)
+{
     fprintf(stderr,"%s: %s\n",progname,str);
     exit(1);
 }
-void usage(){
+
+void usage()
+{
     printf(USAGE_MSG);
     exit(1);
 }
@@ -68,12 +71,12 @@ static void dsleep(float t)
 {
     struct timeval tv;
     assert(t >= 0);
-    tv.tv_sec = (int) t;
+    tv.tv_sec = (int)t;
     tv.tv_usec = (t - tv.tv_sec) * 1000000;
     select(0, NULL, NULL, NULL, &tv);
 }
 
-#define ANYBUTTON (Button1Mask|Button2Mask|Button3Mask|Button4Mask|Button5Mask)
+#define ANYBUTTON (Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask)
 
 /*
  * create a small 1x1 curssor with all pixels masked out on the given screen.
@@ -96,9 +99,9 @@ Window root;
     dummycolour.red = 0;
     dummycolour.flags = 04;
     cursor = XCreatePixmapCursor(display, cursormask, cursormask,
-	      &dummycolour,&dummycolour, 0,0);
-    XFreePixmap(display,cursormask);
-    XFreeGC(display,gc);
+	      &dummycolour, &dummycolour, 0,0);
+    XFreePixmap(display, cursormask);
+    XFreeGC(display, gc);
     return cursor;
 }
 
@@ -130,7 +133,7 @@ int main(int ac, char **av)
 	}
 	else if (!strcmp(*av, "--delay") || !strcmp(*av, "-d"))
 	{
-	    NEXT_ARG;	    
+	    NEXT_ARG;
 	    delay = atof(*av);
 	}
 	else if (!strcmp(*av, "--version"))
@@ -143,7 +146,8 @@ int main(int ac, char **av)
     }
 
     display = XOpenDisplay(displayname);
-    if(display==0)pexit("could not open display");
+    if (display == 0)
+	pexit("could not open display");
     numscreens = ScreenCount(display);
     cursor = (Cursor*) malloc(numscreens*sizeof(Cursor));
     realroot = (Window*) malloc(numscreens*sizeof(Window));
@@ -151,22 +155,22 @@ int main(int ac, char **av)
     /* each screen needs its own empty cursor.
      * note each real root id so can find which screen we are on
      */
-    for(screen = 0;screen<numscreens;screen++)
-	if(onescreen && screen!=DefaultScreen(display)){
+    for (screen = 0; screen < numscreens; screen++)
+	if (onescreen && screen != DefaultScreen(display)){
 	    realroot[screen] = -1;
 	    cursor[screen] = -1;
 	}else{
-	    realroot[screen] = XRootWindow(display,screen);
-	    cursor[screen] = createnullcursor(display,realroot[screen]);
+	    realroot[screen] = XRootWindow(display, screen);
+	    cursor[screen] = createnullcursor(display, realroot[screen]);
 	}
     screen = DefaultScreen(display);
-    root = VirtualRootWindow(display,screen);
+    root = VirtualRootWindow(display, screen);
 
     /*
      * create a small unmapped window on a screen just so xdm can use
      * it as a handle on which to killclient() us.
      */
-    XCreateWindow(display, realroot[screen], 0,0,1,1, 0, CopyFromParent,
+    XCreateWindow(display, realroot[screen], 0, 0, 1, 1, 0, CopyFromParent,
 		 InputOutput, CopyFromParent, 0, (XSetWindowAttributes*)0);
 
     if (delay != 0.0)
@@ -195,13 +199,15 @@ void doit(Display *display, Window root, Window *realroot,
 	{
 	    /* window manager with virtual root may have restarted
 	     * or we have changed screens */
-	    if(!onescreen){
-		for(screen = 0;screen<numscreens;screen++)
-		    if(newroot==realroot[screen])break;
-		if(screen>=numscreens)
+	    if (!onescreen)
+	    {
+		for (screen = 0; screen < numscreens; screen++)
+		    if (newroot == realroot[screen])
+			break;
+		if (screen >= numscreens)
 		    pexit("not on a known screen");
 	    }
-	    root = VirtualRootWindow(display,screen);
+	    root = VirtualRootWindow(display, screen);
 	    continue;
 	}
 	if (modifs & ANYBUTTON)
@@ -209,9 +215,9 @@ void doit(Display *display, Window root, Window *realroot,
 	break;
     }
 
-    if (windowin==None)
+    if (windowin == None)
 	windowin = root;
-    else if(windowin!=lastwindowavoided)
+    else if (windowin != lastwindowavoided)
     {
 	/* descend tree of windows under cursor to bottommost */
 	Window childin;
@@ -221,15 +227,15 @@ void doit(Display *display, Window root, Window *realroot,
 	    windowin = childin;
 	}while(XQueryPointer(display, windowin, &dummywin,
 			     &childin, &rootx, &rooty, &winx, &winy, &modifs)
-	       && childin!=None);
-	if(!toavoid)
+	       && childin != None);
+	if (!toavoid)
 	    lastwindowavoided = None;
     }
 
     // printf("topwin: %x windowin: %x\n", (int)topwin, (int) windowin);
 	
     if (XGrabPointer(display, root, 0,
-		     PointerMotionMask|ButtonPressMask|ButtonReleaseMask,
+		     PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 		     GrabModeAsync, GrabModeAsync, None, cursor[screen],
 		     CurrentTime) != GrabSuccess)
 	pexit("Couldn't grab pointer.");
